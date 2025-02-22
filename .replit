@@ -31,8 +31,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npm start"
-waitForPort = 5678
+args = "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"
 
 [[workflows.workflow]]
 name = "n8n_service"
@@ -46,11 +45,11 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "N8N_CUSTOM_EXTENSIONS=/home/runner/project/nodes N8N_PORT=5678 npx n8n start"
+args = "N8N_CUSTOM_EXTENSIONS=/home/runner/project/nodes N8N_PORT=5678 N8N_PATH=/home/runner/project/nodes N8N_USER_FOLDER=/home/runner/project/.n8n npx n8n start"
 waitForPort = 5678
 
 [deployment]
-run = ["sh", "-c", "N8N_CUSTOM_EXTENSIONS=/home/runner/project/nodes N8N_PORT=5678 npx n8n start"]
+run = ["sh", "-c", "N8N_CUSTOM_EXTENSIONS=/home/runner/project/nodes N8N_PORT=5678 N8N_PATH=/home/runner/project/nodes npx n8n start"]
 
 [[ports]]
 localPort = 5678

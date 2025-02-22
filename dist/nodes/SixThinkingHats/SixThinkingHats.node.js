@@ -66,7 +66,7 @@ class SixThinkingHats {
             // Validate API key
             const apiKey = process.env.ANTHROPIC_API_KEY;
             if (!apiKey) {
-                throw new Error('ANTHROPIC_API_KEY not found in environment variables');
+                throw new Error('ANTHROPIC_API_KEY не найден в переменных окружения');
             }
             // Spawn Python process for analysis
             const pythonScript = (0, path_1.join)(__dirname, 'six_hats_prompt.py');
@@ -87,7 +87,7 @@ class SixThinkingHats {
                 });
                 pythonProcess.on('close', (code) => {
                     if (code !== 0) {
-                        reject(new Error(`Python process failed: ${errorData}`));
+                        reject(new Error(`Ошибка Python процесса: ${errorData}`));
                         return;
                     }
                     try {
@@ -98,13 +98,19 @@ class SixThinkingHats {
                         resolve([returnData]);
                     }
                     catch (error) {
-                        reject(new Error(`Failed to parse Python output: ${error.message}`));
+                        const errorMessage = error instanceof Error
+                            ? error.message
+                            : 'Неизвестная ошибка при обработке вывода Python';
+                        reject(new Error(`Ошибка обработки вывода Python: ${errorMessage}`));
                     }
                 });
             });
         }
         catch (error) {
-            throw new Error(`Six Thinking Hats node error: ${error.message}`);
+            const errorMessage = error instanceof Error
+                ? error.message
+                : 'Неизвестная ошибка в узле Six Thinking Hats';
+            throw new Error(`Ошибка узла Six Thinking Hats: ${errorMessage}`);
         }
     }
 }

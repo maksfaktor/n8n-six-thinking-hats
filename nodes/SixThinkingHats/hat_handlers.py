@@ -1,10 +1,11 @@
 from datetime import datetime
 from typing import Dict, List, Optional
 import logging
+from abc import ABC, abstractmethod
 
 logger = logging.getLogger(__name__)
 
-class HatHandler:
+class HatHandler(ABC):
     def __init__(self, name: str, color: str):
         self.name = name
         self.color = color
@@ -42,6 +43,14 @@ class HatHandler:
         for msg in self.messages[-3:]:  # Last 3 messages for context
             context.append(f"{msg['hat'].upper()} hat: {msg['content']}")
         return "\n".join(context)
+
+    @abstractmethod
+    def get_prompt_context(self) -> str:
+        """
+        Returns the prompt context for this hat type
+        Must be implemented by each hat class
+        """
+        pass
 
 class BlueHat(HatHandler):
     def __init__(self):
