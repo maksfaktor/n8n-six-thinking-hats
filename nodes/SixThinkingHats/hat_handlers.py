@@ -1,6 +1,16 @@
+import logging
+
 class HatHandler:
     def __init__(self, client):
         self.client = client
+        self.hat_colors = {
+            'white': '⚪',
+            'red': '🔴',
+            'black': '⚫',
+            'yellow': '💛',
+            'green': '💚',
+            'blue': '💙'
+        }
         self.hat_prompts = {
             'white': """
                 Анализируйте следующую тему с позиции Белой шляпы (только факты и информация):
@@ -58,21 +68,56 @@ class HatHandler:
             """
         }
 
+    def format_hat_output(self, hat_color, analysis):
+        """Форматирует вывод для отдельной шляпы"""
+        emoji = self.hat_colors.get(hat_color, '🎩')
+        hat_name = hat_color.upper()
+        separator = "=" * 50
+        return f"""
+{separator}
+{emoji} {hat_name} ШЛЯПА {emoji}
+{separator}
+{analysis}
+"""
+
     def process_hat(self, hat_color, topic):
+        import logging
+        logging.info(f"Начало обработки для шляпы {hat_color} и темы: {topic}")
+
         if hat_color not in self.hat_prompts:
+            logging.error(f"Неверный цвет шляпы: {hat_color}")
             return {"error": f"Неверный цвет шляпы: {hat_color}"}
 
         prompt_template = self.hat_prompts[hat_color]
         formatted_prompt = prompt_template.format(topic=topic)
 
-        # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-        response = self.client.messages.create(
-            model="claude-3-5-sonnet-20241022",
-            max_tokens=1000,
-            messages=[{"role": "user", "content": formatted_prompt}]
-        )
+        logging.info("Отправка запроса к Anthropic API")
+        try:
+            # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+            response = self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1000,
+                messages=[{"role": "user", "content": formatted_prompt}]
+            )
 
-        return {
-            "analysis": response.content[0].text.strip(),
-            "hat_color": hat_color
-        }
+            logging.info("Получен ответ от API")
+
+            if not response.content:
+                logging.error("Пустой ответ от API")
+                return {"error": "Пустой ответ от API"}
+
+            analysis = response.content[0].text.strip()
+            formatted_output = self.format_hat_output(hat_color, analysis)
+            print(formatted_output)  # Выводим форматированный текст в консоль
+
+            logging.info(f"Анализ для шляпы {hat_color}: {analysis[:100]}...")
+
+            return {
+                "analysis": analysis,
+                "hat_color": hat_color,
+                "formatted_output": formatted_output
+            }
+
+        except Exception as e:
+            logging.error(f"Ошибка при обработке шляпы {hat_color}: {str(e)}")
+            return {"error": f"Ошибка при обработке: {str(e)}"}

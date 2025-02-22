@@ -31,8 +31,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node SixThinkingHats.node.ts"
-waitForPort = 3000
+args = "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"
 
 [[workflows.workflow]]
 name = "build-and-run"
@@ -49,4 +48,4 @@ task = "shell.exec"
 args = "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"
 
 [deployment]
-run = ["sh", "-c", "node SixThinkingHats.node.ts"]
+run = ["sh", "-c", "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"]
