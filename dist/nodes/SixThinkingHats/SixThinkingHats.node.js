@@ -1,0 +1,111 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.SixThinkingHats = void 0;
+const types_1 = require("./types");
+const child_process_1 = require("child_process");
+const path_1 = require("path");
+// the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+class SixThinkingHats {
+    constructor() {
+        this.description = {
+            displayName: 'Six Thinking Hats',
+            name: 'sixThinkingHats',
+            group: ['transform'],
+            version: 1,
+            description: 'Метод 6 шляп мышления с последовательным диалогом',
+            defaults: {
+                name: 'Six Thinking Hats',
+            },
+            inputs: [{
+                    type: "main" /* NodeConnectionType.Main */,
+                }],
+            outputs: [{
+                    type: "main" /* NodeConnectionType.Main */,
+                }],
+            credentials: [
+                {
+                    name: 'anthropicApi',
+                    required: true,
+                },
+            ],
+            properties: [
+                {
+                    displayName: 'Тема для анализа',
+                    name: 'topic',
+                    type: 'string',
+                    default: '',
+                    required: true,
+                    description: 'Тема для анализа методом 6 шляп',
+                },
+                {
+                    displayName: 'Порядок шляп',
+                    name: 'hatsOrder',
+                    type: 'multiOptions',
+                    options: Object.entries(types_1.hatColors).map(([key, value]) => ({
+                        name: key.charAt(0).toUpperCase() + key.slice(1),
+                        value: key,
+                    })),
+                    default: types_1.defaultHatsOrder,
+                    description: 'Выберите порядок использования шляп',
+                },
+                {
+                    displayName: 'Режим диалога',
+                    name: 'dialogMode',
+                    type: 'boolean',
+                    default: true,
+                    description: 'Включить режим последовательного диалога между шляпами',
+                },
+            ],
+        };
+    }
+    async execute() {
+        try {
+            const topic = this.getNodeParameter('topic', 0);
+            const hatsOrder = this.getNodeParameter('hatsOrder', 0);
+            const dialogMode = this.getNodeParameter('dialogMode', 0);
+            // Validate API key
+            const apiKey = process.env.ANTHROPIC_API_KEY;
+            if (!apiKey) {
+                throw new Error('ANTHROPIC_API_KEY not found in environment variables');
+            }
+            // Spawn Python process for analysis
+            const pythonScript = (0, path_1.join)(__dirname, 'six_hats_prompt.py');
+            const pythonProcess = (0, child_process_1.spawn)('python', [
+                pythonScript,
+                '--topic', topic,
+                '--hats', JSON.stringify(hatsOrder),
+                '--dialog-mode', String(dialogMode),
+            ]);
+            return new Promise((resolve, reject) => {
+                let outputData = '';
+                let errorData = '';
+                pythonProcess.stdout.on('data', (data) => {
+                    outputData += data.toString();
+                });
+                pythonProcess.stderr.on('data', (data) => {
+                    errorData += data.toString();
+                });
+                pythonProcess.on('close', (code) => {
+                    if (code !== 0) {
+                        reject(new Error(`Python process failed: ${errorData}`));
+                        return;
+                    }
+                    try {
+                        const result = JSON.parse(outputData);
+                        const returnData = [{
+                                json: result,
+                            }];
+                        resolve([returnData]);
+                    }
+                    catch (error) {
+                        reject(new Error(`Failed to parse Python output: ${error.message}`));
+                    }
+                });
+            });
+        }
+        catch (error) {
+            throw new Error(`Six Thinking Hats node error: ${error.message}`);
+        }
+    }
+}
+exports.SixThinkingHats = SixThinkingHats;

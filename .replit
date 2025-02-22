@@ -1,0 +1,57 @@
+modules = ["nodejs-20", "python-3.11"]
+
+[nix]
+channel = "stable-24_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Six Hats Analysis"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "n8n_service"
+
+[[workflows.workflow]]
+name = "Six Hats Analysis"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npm start"
+waitForPort = 5678
+
+[[workflows.workflow]]
+name = "n8n_service"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "N8N_CUSTOM_EXTENSIONS=/home/runner/project/nodes N8N_PORT=5678 npx n8n start"
+waitForPort = 5678
+
+[deployment]
+run = ["sh", "-c", "N8N_CUSTOM_EXTENSIONS=/home/runner/project/nodes N8N_PORT=5678 npx n8n start"]
+
+[[ports]]
+localPort = 5678
+externalPort = 80
