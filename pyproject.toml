@@ -10,4 +10,5 @@ dependencies = [
     "openai>=1.63.2",
     "python-shell>=1.0.4",
     "langchain-community>=0.3.18",
+    "twilio>=9.4.6",
 ]
