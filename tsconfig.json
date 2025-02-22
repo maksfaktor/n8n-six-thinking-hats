@@ -2,8 +2,8 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "commonjs",
-    "outDir": "dist",
-    "rootDir": ".",
+    "outDir": "./nodes/SixThinkingHats/dist",
+    "rootDir": "./nodes/SixThinkingHats",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
@@ -16,6 +16,6 @@
       "*": ["node_modules/*"]
     }
   },
-  "include": ["nodes/**/*"],
+  "include": ["nodes/SixThinkingHats/**/*"],
   "exclude": ["node_modules", "dist"]
 }

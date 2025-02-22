@@ -1,3 +1,3 @@
 module.exports = {
-  SixThinkingHats: require('./dist/nodes/SixThinkingHats/SixThinkingHats.node.js').SixThinkingHats,
+  SixThinkingHats: require('./dist/SixThinkingHats.node.js').SixThinkingHats,
 };
