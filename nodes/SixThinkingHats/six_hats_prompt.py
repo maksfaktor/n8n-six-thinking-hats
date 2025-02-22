@@ -1,106 +1,191 @@
+import os
 import sys
 import json
 import logging
-import os
+import argparse
+import asyncio
+from datetime import datetime
+from typing import List, Dict, Optional
 from anthropic import Anthropic
-from hat_handlers import HatHandler
+from console_formatter import ConsoleFormatter
+from hat_handlers import HatManager
 
-# Настройка путей
-current_dir = os.path.dirname(os.path.abspath(__file__))
-log_file = os.path.join(current_dir, 'six_hats.log')
-
-print(f"Текущая директория: {current_dir}")
-print(f"Путь к файлу логов: {log_file}")
-
-# Настройка логирования
-try:
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout),
-            logging.FileHandler(log_file)
-        ]
-    )
-    print("Логирование настроено успешно")
-except Exception as e:
-    print(f"Ошибка при настройке логирования: {str(e)}")
-    sys.exit(1)
-
+# Configure logging
+logging.basicConfig(
+    filename='six_hats.log',
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
 logger = logging.getLogger(__name__)
 
-def print_dialogue_header(topic):
-    """Печатает заголовок диалога"""
-    separator = "=" * 70
-    print(f"\n{separator}")
-    print(f"🎯 АНАЛИЗ ТЕМЫ: {topic}")
-    print(f"{separator}\n")
+class SixHatsAnalyzer:
+    def __init__(self):
+        self.api_key = os.environ.get('ANTHROPIC_API_KEY')
+        if not self.api_key:
+            raise ValueError("ANTHROPIC_API_KEY not found in environment variables")
+
+        self.client = Anthropic(api_key=self.api_key)
+        self.hat_manager = HatManager()
+        self.console = ConsoleFormatter()
+        self.current_topic: Optional[str] = None
+
+    async def analyze_topic(self, topic: str, hats_order: List[str], dialog_mode: bool) -> Dict:
+        try:
+            self.current_topic = topic
+            logger.info(f"Starting analysis for topic: {topic}")
+            self.console.print_header(f"Analyzing: {topic}")
+
+            # Create progress tracker
+            progress_task = self.console.create_progress_tracker(len(hats_order))
+
+            current_focus = topic
+            for hat_color in hats_order:
+                hat_handler = self.hat_manager.get_hat(hat_color)
+                if not hat_handler:
+                    raise ValueError(f"Invalid hat color: {hat_color}")
+
+                self.console.print_hat_transition(hat_color)
+
+                # Get context from previous messages if in dialog mode
+                context = hat_handler.get_context_for_response() if dialog_mode else ""
+
+                # Special handling for Blue hat
+                if hat_color == 'blue':
+                    if len(self.hat_manager.get_dialogue_history()) > 0:
+                        # Update focus based on discussion
+                        current_focus = await self._get_blue_hat_focus(topic)
+
+                response = await self.process_hat_thinking(
+                    hat_color, 
+                    current_focus, 
+                    dialog_mode,
+                    context
+                )
+
+                # Add message to history with proper context
+                last_message = self.hat_manager.get_dialogue_history()[-1] if self.hat_manager.get_dialogue_history() else None
+                response_to = last_message['id'] if last_message and dialog_mode else None
+                hat_handler.add_message(response, response_to)
+
+                # Print message with context
+                self.console.print_message(hat_handler.messages[-1])
+
+                # Update progress
+                self.console.update_progress(progress_task)
+
+                # If it's the Blue hat, show summary after other hats have spoken
+                if hat_color == 'blue' and len(self.hat_manager.get_dialogue_history()) > 1:
+                    self.console.print_blue_hat_summary(response)
+
+            # Complete progress tracking
+            self.console.complete_progress()
+
+            # Show dialogue tree and statistics
+            self.console.print_dialogue_tree(self.hat_manager.get_dialogue_history())
+            self.console.print_analysis_statistics(self.hat_manager.get_dialogue_history())
+
+            return {
+                'status': 'success',
+                'conversation': self.hat_manager.get_dialogue_history()
+            }
+
+        except Exception as e:
+            logger.error(f"Analysis failed: {str(e)}")
+            self.console.print_error(str(e))
+            return {
+                'status': 'error',
+                'error': str(e),
+                'conversation': self.hat_manager.get_dialogue_history()
+            }
+
+    async def process_hat_thinking(
+        self, 
+        hat_color: str, 
+        topic: str, 
+        dialog_mode: bool,
+        context: str = ""
+    ) -> str:
+        try:
+            prompt_context = self._build_context(hat_color, dialog_mode, context)
+
+            # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+            response = await self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1024,
+                messages=[{
+                    "role": "user",
+                    "content": f"{prompt_context}\n\nTopic: {topic}\n\nPrevious discussion: {context}"
+                }]
+            )
+
+            return response.content[0].text
+
+        except Exception as e:
+            logger.error(f"Error processing hat {hat_color}: {str(e)}")
+            raise
+
+    async def _get_blue_hat_focus(self, original_topic: str) -> str:
+        """
+        Have the Blue hat analyze the discussion and determine the next focus
+        """
+        try:
+            history = self.hat_manager.get_dialogue_history()
+            history_context = "\n".join([
+                f"{msg['hat'].upper()} hat: {msg['content']}"
+                for msg in history[-3:]  # Last 3 messages for context
+            ])
+
+            response = await self.client.messages.create(
+                model="claude-3-5-sonnet-20241022",
+                max_tokens=1024,
+                messages=[{
+                    "role": "user",
+                    "content": f"""
+                    As the Blue hat, analyze the recent discussion about '{original_topic}':
+
+                    {history_context}
+
+                    What should be the next focus of discussion? 
+                    Respond with a clear, concise direction that addresses the most pressing aspects 
+                    revealed in the dialogue so far.
+                    """
+                }]
+            )
+
+            return response.content[0].text
+
+        except Exception as e:
+            logger.error(f"Error getting Blue hat focus: {str(e)}")
+            return original_topic
+
+    def _build_context(self, hat_color: str, dialog_mode: bool, context: str = "") -> str:
+        hat = self.hat_manager.get_hat(hat_color)
+        base_context = hat.get_prompt_context()
+
+        if dialog_mode:
+            base_context += f"\n\nConsider the previous discussion:\n{context}"
+            if hat_color == 'blue':
+                base_context += "\nAs the Blue hat, guide the discussion and maintain focus."
+
+        return base_context
+
+async def async_main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--topic', required=True)
+    parser.add_argument('--hats', required=True)
+    parser.add_argument('--dialog-mode', required=True)
+
+    args = parser.parse_args()
+    hats_order = json.loads(args.hats)
+    dialog_mode = args.dialog_mode.lower() == 'true'
+
+    analyzer = SixHatsAnalyzer()
+    result = await analyzer.analyze_topic(args.topic, hats_order, dialog_mode)
+
+    print(json.dumps(result))
 
 def main():
-    try:
-        logger.info("Запуск обработки шести шляп мышления")
-        print("Запуск обработки шести шляп мышления")
-
-        if len(sys.argv) != 4:
-            error_msg = "Неверное количество аргументов"
-            logger.error(error_msg)
-            print(json.dumps({"error": error_msg}))
-            sys.exit(1)
-
-        topic = sys.argv[1]
-        selected_hats = json.loads(sys.argv[2])
-        api_key = sys.argv[3]
-
-        print(f"Тема: {topic}")
-        print(f"Выбранные шляпы: {selected_hats}")
-        logger.info(f"Получены параметры: тема='{topic}', шляпы={selected_hats}")
-
-        if not api_key:
-            error_msg = "API ключ Anthropic не предоставлен"
-            logger.error(error_msg)
-            print(json.dumps({"error": error_msg}))
-            sys.exit(1)
-
-        # Инициализация Anthropic
-        logger.info("Инициализация Anthropic")
-        print("Инициализация Anthropic клиента")
-        client = Anthropic(api_key=api_key)
-        handler = HatHandler(client)
-
-        # Печатаем заголовок диалога
-        print_dialogue_header(topic)
-
-        results = {}
-        all_formatted_outputs = []
-
-        for hat in selected_hats:
-            print(f"Обработка шляпы: {hat}")
-            logger.info(f"Обработка шляпы: {hat}")
-            result = handler.process_hat(hat, topic)
-            results[hat] = result
-            if 'formatted_output' in result:
-                all_formatted_outputs.append(result['formatted_output'])
-
-        # Печатаем итоговый разделитель
-        print("\n" + "=" * 70 + "\n")
-
-        logger.info("Обработка завершена успешно")
-        print("Обработка завершена успешно")
-
-        # Подготавливаем результаты для n8n
-        n8n_results = {hat: {
-            'analysis': results[hat]['analysis'],
-            'hat_color': hat
-        } for hat in selected_hats if 'analysis' in results[hat]}
-
-        print(json.dumps(n8n_results, ensure_ascii=False))
-        logger.info(f"Результаты: {json.dumps(n8n_results, ensure_ascii=False)}")
-
-    except Exception as e:
-        error_msg = f"Произошла ошибка: {str(e)}"
-        logger.error(error_msg, exc_info=True)
-        print(json.dumps({"error": error_msg}))
-        sys.exit(1)
+    asyncio.run(async_main())
 
 if __name__ == "__main__":
     main()

@@ -1,4 +1,8 @@
+<<<<<<< HEAD
 modules = ["python-3.11", "nodejs-20", "python3"]
+=======
+modules = ["nodejs-20", "python-3.11"]
+>>>>>>> 43495dbe6ea205fe94dad8ff3f09aac553caa4fa
 
 [nix]
 channel = "stable-24_05"
@@ -13,6 +17,7 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
+<<<<<<< HEAD
 args = "SixThinkingHats"
 
 [[workflows.workflow.tasks]]
@@ -21,6 +26,16 @@ args = "build-and-run"
 
 [[workflows.workflow]]
 name = "SixThinkingHats"
+=======
+args = "visualization_server"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "n8n_service"
+
+[[workflows.workflow]]
+name = "visualization_server"
+>>>>>>> 43495dbe6ea205fe94dad8ff3f09aac553caa4fa
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -31,10 +46,18 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
+<<<<<<< HEAD
 args = "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"
 
 [[workflows.workflow]]
 name = "build-and-run"
+=======
+args = "cd nodes/SixThinkingHats && node web_visualizer/server.js"
+waitForPort = 3001
+
+[[workflows.workflow]]
+name = "n8n_service"
+>>>>>>> 43495dbe6ea205fe94dad8ff3f09aac553caa4fa
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -45,7 +68,23 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
+<<<<<<< HEAD
 args = "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"
 
 [deployment]
 run = ["sh", "-c", "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"]
+=======
+args = "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true N8N_PORT=5678 N8N_USER_FOLDER=/home/runner/.n8n N8N_CUSTOM_EXTENSIONS=/home/runner/workspace/nodes N8N_AUTH_EXCLUDE_ENDPOINTS=* npx n8n start"
+waitForPort = 5678
+
+[deployment]
+run = ["sh", "-c", "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true N8N_PORT=5678 N8N_USER_FOLDER=/home/runner/.n8n N8N_CUSTOM_EXTENSIONS=/home/runner/workspace/nodes npx n8n start"]
+
+[[ports]]
+localPort = 3001
+externalPort = 3001
+
+[[ports]]
+localPort = 5678
+externalPort = 80
+>>>>>>> 43495dbe6ea205fe94dad8ff3f09aac553caa4fa

@@ -1,15 +1,21 @@
 {
   "compilerOptions": {
+    "target": "ES2020",
     "module": "commonjs",
-    "moduleResolution": "node",
-    "target": "es2019",
-    "outDir": "./dist",
-    "rootDir": ".",
+    "outDir": "./nodes/SixThinkingHats/dist",
+    "rootDir": "./nodes/SixThinkingHats",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
-    "forceConsistentCasingInFileNames": true
+    "forceConsistentCasingInFileNames": true,
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "baseUrl": ".",
+    "paths": {
+      "*": ["node_modules/*"]
+    }
   },
-  "include": ["nodes/**/*"],
-  "exclude": ["node_modules", "**/*.spec.ts"]
+  "include": ["nodes/SixThinkingHats/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

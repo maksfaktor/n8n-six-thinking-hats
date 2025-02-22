@@ -5,10 +5,14 @@ description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
     "anthropic>=0.46.0",
+<<<<<<< HEAD
     "langchain-core>=0.3.37",
     "langchain>=0.3.19",
     "openai>=1.63.2",
     "python-shell>=1.0.4",
     "langchain-community>=0.3.18",
     "twilio>=9.4.6",
+=======
+    "rich>=13.9.4",
+>>>>>>> 43495dbe6ea205fe94dad8ff3f09aac553caa4fa
 ]

@@ -1,7 +1,8 @@
-# Node.js
+# Node
 node_modules/
 dist/
 .npm
+.env
 *.log
 npm-debug.log*
 
@@ -9,37 +10,24 @@ npm-debug.log*
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 .Python
 env/
-build/
-develop-eggs/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-.installed.cfg
-*.egg
+venv/
+.env
+
+# n8n
+.n8n/
+*.log
 
 # IDE
-.idea/
 .vscode/
+.idea/
 *.swp
 *.swo
 
-# Environment
-.env
-.env.local
-.env.*.local
-
-# Logs
-logs/
-*.log
+# OS
+.DS_Store
+Thumbs.db
 
 # Replit specific
 .replit

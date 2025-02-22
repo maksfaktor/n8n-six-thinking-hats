@@ -1,0 +1,46 @@
+{
+  "name": "n8n-nodes-six-thinking-hats",
+  "version": "1.0.0",
+  "description": "Six Thinking Hats analysis node for n8n",
+  "keywords": [
+    "n8n-community-node-package"
+  ],
+  "license": "MIT",
+  "homepage": "",
+  "author": {
+    "name": "Six Thinking Hats",
+    "email": ""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maksfaktor/n8n-six-thinking-hats"
+  },
+  "main": "dist/nodes/SixThinkingHats/SixThinkingHats.node.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "format": "prettier nodes --write",
+    "lint": "eslint nodes package.json",
+    "lintfix": "eslint nodes package.json --fix",
+    "prepublishOnly": "npm run build"
+  },
+  "files": [
+    "dist"
+  ],
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "dist/nodes/SixThinkingHats/SixThinkingHats.node.js"
+    ]
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.11.19",
+    "n8n-workflow": "^1.0.0",
+    "typescript": "^5.3.3"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.17.1",
+    "express": "^4.18.2"
+  }
+}

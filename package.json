@@ -10,11 +10,20 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+<<<<<<< HEAD
     "@types/node": "^22.13.5",
     "@types/python-shell": "^0.4.2",
     "n8n-core": "^1.14.1",
     "n8n-workflow": "^1.70.0",
     "python-shell": "^5.0.0",
+=======
+    "@anthropic-ai/sdk": "^0.36.3",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.5",
+    "express": "^4.21.2",
+    "n8n": "^1.79.3",
+    "n8n-workflow": "^1.78.1",
+>>>>>>> 43495dbe6ea205fe94dad8ff3f09aac553caa4fa
     "typescript": "^5.7.3"
   }
 }

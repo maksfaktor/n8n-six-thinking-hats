@@ -1,174 +1,159 @@
-import {
-    IExecuteFunctions,
+import { 
+    INodeType, 
+    INodeTypeDescription, 
+    IExecuteFunctions, 
     INodeExecutionData,
-    INodeType,
-    INodeTypeDescription,
-    NodeOperationError,
     NodeConnectionType,
+    IDataObject,
+    INodeInputConfiguration,
+    INodeOutputConfiguration
 } from 'n8n-workflow';
-import { PythonShell } from 'python-shell';
-import * as path from 'path';
+import { hatColors, defaultHatsOrder, IAnalysisResult } from './types';
+import Anthropic from '@anthropic-ai/sdk';
+import { spawn } from 'child_process';
+import { join } from 'path';
+import { readFileSync } from 'fs';
+import express from 'express';
+
+// Declare global type for latestConversation
+declare global {
+    var latestConversation: IAnalysisResult | null;
+}
 
 export class SixThinkingHats implements INodeType {
+    private visualizationServer: express.Express | null = null;
+
     description: INodeTypeDescription = {
         displayName: 'Six Thinking Hats',
         name: 'sixThinkingHats',
         group: ['transform'],
         version: 1,
-        description: 'Применяет методологию шести шляп мышления с помощью LangChain',
+        description: 'Метод 6 шляп мышления с последовательным диалогом',
         defaults: {
             name: 'Six Thinking Hats',
         },
-        inputs: [
+        inputs: [{
+            type: NodeConnectionType.Main,
+        }] as INodeInputConfiguration[],
+        outputs: [{
+            type: NodeConnectionType.Main,
+        }] as INodeOutputConfiguration[],
+        credentials: [
             {
-                type: NodeConnectionType.Main,
-                required: true,
-            },
-        ],
-        outputs: [
-            {
-                type: NodeConnectionType.Main,
+                name: 'anthropicApi',
                 required: true,
             },
         ],
         properties: [
             {
-                displayName: 'Тема',
+                displayName: 'Тема для анализа',
                 name: 'topic',
                 type: 'string',
                 default: '',
                 required: true,
-                description: 'Тема или решение для анализа',
+                description: 'Тема для анализа методом 6 шляп',
             },
             {
-                displayName: 'Выбранные шляпы',
-                name: 'selectedHats',
+                displayName: 'Порядок шляп',
+                name: 'hatsOrder',
                 type: 'multiOptions',
-                options: [
-                    {
-                        name: 'Белая шляпа (Факты)',
-                        value: 'white',
-                    },
-                    {
-                        name: 'Красная шляпа (Эмоции)',
-                        value: 'red',
-                    },
-                    {
-                        name: 'Черная шляпа (Критика)',
-                        value: 'black',
-                    },
-                    {
-                        name: 'Желтая шляпа (Преимущества)',
-                        value: 'yellow',
-                    },
-                    {
-                        name: 'Зеленая шляпа (Креативность)',
-                        value: 'green',
-                    },
-                    {
-                        name: 'Синяя шляпа (Процесс)',
-                        value: 'blue',
-                    },
-                ],
-                default: ['white', 'red', 'black', 'yellow', 'green', 'blue'],
-                required: true,
-                description: 'Выберите, какие шляпы мышления применить',
-            }
+                options: Object.entries(hatColors).map(([key, value]) => ({
+                    name: key.charAt(0).toUpperCase() + key.slice(1),
+                    value: key,
+                })),
+                default: defaultHatsOrder,
+                description: 'Выберите порядок использования шляп',
+            },
+            {
+                displayName: 'Режим диалога',
+                name: 'dialogMode',
+                type: 'boolean',
+                default: true,
+                description: 'Включить режим последовательного диалога между шляпами',
+            },
         ],
     };
 
+    private setupVisualizationServer() {
+        if (this.visualizationServer) return;
+
+        const app = express();
+        const visualizerPath = join(__dirname, 'web_visualizer');
+        app.use(express.static(visualizerPath));
+
+        const serverPort = Number(process.env.VISUALIZER_PORT || 3001);
+        app.listen(serverPort, '0.0.0.0', () => {
+            console.log(`Visualization server running on port ${serverPort}`);
+        });
+
+        this.visualizationServer = app;
+    }
+
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+        global.latestConversation = null;
         try {
-            const items = this.getInputData();
-            const returnData: INodeExecutionData[] = [];
-
             const topic = this.getNodeParameter('topic', 0) as string;
-            const selectedHats = this.getNodeParameter('selectedHats', 0) as string[];
+            const hatsOrder = this.getNodeParameter('hatsOrder', 0) as string[];
+            const dialogMode = this.getNodeParameter('dialogMode', 0) as boolean;
 
-            console.log(`Начало выполнения с параметрами: тема="${topic}", шляпы=${JSON.stringify(selectedHats)}`);
-
-            if (!process.env.ANTHROPIC_API_KEY) {
+            // Validate API key
+            const apiKey = process.env.ANTHROPIC_API_KEY;
+            if (!apiKey) {
                 throw new Error('ANTHROPIC_API_KEY не найден в переменных окружения');
             }
 
-            const scriptPath = path.join(__dirname, 'six_hats_prompt.py');
-            console.log(`Путь к скрипту: ${scriptPath}`);
+            // Spawn Python process for analysis
+            const pythonScript = join(__dirname, 'six_hats_prompt.py');
+            const pythonProcess = spawn('python', [
+                pythonScript,
+                '--topic', topic,
+                '--hats', JSON.stringify(hatsOrder),
+                '--dialog-mode', String(dialogMode),
+            ]);
 
-            const options = {
-                mode: 'text' as const,
-                pythonPath: 'python3',
-                pythonOptions: ['-u'],
-                scriptPath: path.dirname(scriptPath),
-                cwd: path.dirname(scriptPath),
-                args: [
-                    topic,
-                    JSON.stringify(selectedHats),
-                    process.env.ANTHROPIC_API_KEY
-                ],
-            };
+            return new Promise((resolve, reject) => {
+                let outputData = '';
+                let errorData = '';
 
-            console.log('Запуск Python-скрипта...');
-            console.log(`Рабочая директория: ${options.cwd}`);
-
-            const results = await new Promise<string[]>((resolve, reject) => {
-                const pyshell = new PythonShell(path.basename(scriptPath), options);
-                const output: string[] = [];
-
-                pyshell.on('message', (message) => {
-                    console.log(`Получено сообщение от Python: ${message}`);
-                    output.push(message);
+                pythonProcess.stdout.on('data', (data) => {
+                    outputData += data.toString();
                 });
 
-                pyshell.on('error', (err) => {
-                    console.error('Ошибка в Python-скрипте:', err);
-                    reject(new Error(`Ошибка при выполнении Python-скрипта: ${err.message}`));
+                pythonProcess.stderr.on('data', (data) => {
+                    errorData += data.toString();
                 });
 
-                pyshell.end((err) => {
-                    if (err) {
-                        console.error('Ошибка при завершении Python-скрипта:', err);
-                        reject(new Error(`Ошибка при завершении Python-скрипта: ${err.message}`));
+                pythonProcess.on('close', (code) => {
+                    if (code !== 0) {
+                        reject(new Error(`Ошибка Python процесса: ${errorData}`));
                         return;
                     }
-                    console.log('Python-скрипт успешно завершил работу');
-                    resolve(output);
+
+                    try {
+                        const result = JSON.parse(outputData) as IAnalysisResult;
+                        if (result.status === 'success') {
+                            global.latestConversation = result;
+                            // Get instance reference and call visualization server setup
+                            const nodeInstance = this as unknown as SixThinkingHats;
+                            nodeInstance.setupVisualizationServer();
+                        }
+                        const returnData: INodeExecutionData[] = [{
+                            json: result as unknown as IDataObject,
+                        }];
+                        resolve([returnData]);
+                    } catch (error: unknown) {
+                        const errorMessage = error instanceof Error 
+                            ? error.message 
+                            : 'Неизвестная ошибка при обработке вывода Python';
+                        reject(new Error(`Ошибка обработки вывода Python: ${errorMessage}`));
+                    }
                 });
             });
-
-            if (results && results.length > 0) {
-                // Ищем последнее валидное JSON сообщение
-                let lastJsonOutput = null;
-                for (let i = results.length - 1; i >= 0; i--) {
-                    try {
-                        lastJsonOutput = JSON.parse(results[i]);
-                        break;
-                    } catch (e) {
-                        continue;
-                    }
-                }
-
-                if (lastJsonOutput) {
-                    console.log('Обработка результатов завершена успешно');
-                    returnData.push({
-                        json: {
-                            topic,
-                            analysis: lastJsonOutput,
-                        },
-                    });
-                } else {
-                    throw new Error('Не удалось получить валидный JSON от Python-скрипта');
-                }
-            } else {
-                throw new Error('Python-скрипт не вернул результатов');
-            }
-
-            return [returnData];
-        } catch (error) {
-            console.error('Произошла ошибка:', error);
-            if (error instanceof Error) {
-                throw new NodeOperationError(this.getNode(), error);
-            }
-            throw error;
+        } catch (error: unknown) {
+            const errorMessage = error instanceof Error 
+                ? error.message 
+                : 'Неизвестная ошибка в узле Six Thinking Hats';
+            throw new Error(`Ошибка узла Six Thinking Hats: ${errorMessage}`);
         }
     }
 }

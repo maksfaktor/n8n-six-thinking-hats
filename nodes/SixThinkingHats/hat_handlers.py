@@ -1,123 +1,192 @@
+from datetime import datetime
+from typing import Dict, List, Optional
 import logging
+from abc import ABC, abstractmethod
 
-class HatHandler:
-    def __init__(self, client):
-        self.client = client
-        self.hat_colors = {
-            'white': '⚪',
-            'red': '🔴',
-            'black': '⚫',
-            'yellow': '💛',
-            'green': '💚',
-            'blue': '💙'
+logger = logging.getLogger(__name__)
+
+class HatHandler(ABC):
+    def __init__(self, name: str, color: str):
+        self.name = name
+        self.color = color
+        self.messages: List[Dict] = []
+        self.previous_responses: List[Dict] = []
+
+    def add_message(self, content: str, response_to: Optional[str] = None) -> None:
+        """
+        Adds a message to the hat's conversation history
+        Args:
+            content: The message content
+            response_to: ID of the message this is responding to
+        """
+        message = {
+            'id': f"{self.color}_{len(self.messages)}",
+            'hat': self.color,
+            'content': content,
+            'timestamp': datetime.now().isoformat(),
+            'response_to': response_to
         }
-        self.hat_prompts = {
-            'white': """
-                Анализируйте следующую тему с позиции Белой шляпы (только факты и информация):
-                Тема: {topic}
-                Сосредоточьтесь на:
-                - Доступных данных и фактах
-                - Объективной информации
-                - Пробелах в знаниях
-                Пожалуйста, предоставьте структурированный анализ фактов.
-            """,
-            'red': """
-                Рассмотрите следующую тему с позиции Красной шляпы (эмоции и чувства):
-                Тема: {topic}
-                Сосредоточьтесь на:
-                - Эмоциональных реакциях
-                - Интуитивных ответах
-                - Внутренних ощущениях
-                Поделитесь эмоциональной перспективой без обоснования.
-            """,
-            'black': """
-                Оцените следующую тему с позиции Черной шляпы (критическое суждение):
-                Тема: {topic}
-                Сосредоточьтесь на:
-                - Потенциальных рисках
-                - Логических недостатках
-                - Слабых местах
-                Предоставьте тщательный критический анализ.
-            """,
-            'yellow': """
-                Изучите следующую тему с позиции Желтой шляпы (преимущества и позитив):
-                Тема: {topic}
-                Сосредоточьтесь на:
-                - Возможностях
-                - Преимуществах
-                - Позитивных аспектах
-                Перечислите конструктивные моменты и потенциальные выгоды.
-            """,
-            'green': """
-                Рассмотрите следующую тему с позиции Зеленой шляпы (креативность):
-                Тема: {topic}
-                Сосредоточьтесь на:
-                - Новых идеях
-                - Альтернативных подходах
-                - Инновационных решениях
-                Создайте творческие возможности и альтернативы.
-            """,
-            'blue': """
-                Организуйте мысли о следующей теме с позиции Синей шляпы (контроль процесса):
-                Тема: {topic}
-                Сосредоточьтесь на:
-                - Обзоре процесса мышления
-                - Следующих шагах
-                - Пунктах для действия
-                Предоставьте структурированное резюме и план действий.
-            """
+        self.messages.append(message)
+        logger.info(f"{self.color} hat added message: {message['id']}")
+
+    def get_history(self) -> List[Dict]:
+        """
+        Returns the hat's message history
+        """
+        return self.messages
+
+    def get_context_for_response(self) -> str:
+        """
+        Gets context from previous messages for generating responses
+        """
+        context = []
+        for msg in self.messages[-3:]:  # Last 3 messages for context
+            context.append(f"{msg['hat'].upper()} hat: {msg['content']}")
+        return "\n".join(context)
+
+    @abstractmethod
+    def get_prompt_context(self) -> str:
+        """
+        Returns the prompt context for this hat type
+        Must be implemented by each hat class
+        """
+        pass
+
+class BlueHat(HatHandler):
+    def __init__(self):
+        super().__init__('Process Control', 'blue')
+
+    def get_prompt_context(self) -> str:
+        return """
+        As the Blue hat (Process Controller), your role is to:
+        1. Manage and guide the thinking process
+        2. Define clear objectives and keep focus
+        3. Observe and analyze contributions from other hats
+        4. Request specific input from other hats when needed
+        5. Summarize insights and redirect discussion if needed
+        6. Ensure productive and balanced dialogue
+        7. Make final conclusions and action plans
+
+        Always maintain control of the discussion flow and 
+        redirect when the conversation strays from the objective.
+        """
+
+class WhiteHat(HatHandler):
+    def __init__(self):
+        super().__init__('Facts', 'white')
+
+    def get_prompt_context(self) -> str:
+        return """
+        As the White hat, focus on:
+        1. Present verified facts and data objectively
+        2. Identify gaps in information
+        3. Suggest ways to obtain missing data
+        4. Respond to Blue hat's requests for factual clarity
+        5. Avoid interpretations or opinions
+
+        Maintain neutrality and factual accuracy in all responses.
+        Support other hats with relevant data when requested.
+        """
+
+class RedHat(HatHandler):
+    def __init__(self):
+        super().__init__('Emotions', 'red')
+
+    def get_prompt_context(self) -> str:
+        return """
+        As the Red hat, express:
+        1. Immediate feelings and reactions
+        2. Emotional insights and intuitions
+        3. Changes in emotional response over discussion
+        4. Gut feelings about proposed ideas
+        5. Respond to emotional aspects highlighted by others
+
+        Share authentic emotional responses while respecting
+        the Blue hat's guidance and other perspectives.
+        """
+
+class BlackHat(HatHandler):
+    def __init__(self):
+        super().__init__('Caution', 'black')
+
+    def get_prompt_context(self) -> str:
+        return """
+        As the Black hat, identify:
+        1. Potential risks and weaknesses
+        2. Logical flaws in proposals
+        3. Specific concerns needing attention
+        4. Constructive criticism of ideas
+        5. Respond to others' optimism with careful analysis
+
+        Provide balanced caution while remaining open to solutions
+        and following the Blue hat's guidance.
+        """
+
+class YellowHat(HatHandler):
+    def __init__(self):
+        super().__init__('Benefits', 'yellow')
+
+    def get_prompt_context(self) -> str:
+        return """
+        As the Yellow hat, explore:
+        1. Identify opportunities and benefits
+        2. Find value in other hats' concerns
+        3. Suggest constructive possibilities
+        4. Build on positive aspects discussed
+        5. Balance Black hat's caution with optimism
+
+        Maintain realistic optimism while acknowledging
+        valid concerns raised by others.
+        """
+
+class GreenHat(HatHandler):
+    def __init__(self):
+        super().__init__('Creativity', 'green')
+
+    def get_prompt_context(self) -> str:
+        return """
+        As the Green hat, generate:
+        1. Novel solutions and approaches
+        2. Creative responses to challenges
+        3. Alternative perspectives
+        4. Innovative combinations of ideas
+        5. Build on others' contributions creatively
+
+        Focus on generating new possibilities while
+        respecting the Blue hat's process direction.
+        """
+
+class HatManager:
+    def __init__(self):
+        self.hats = {
+            'blue': BlueHat(),
+            'white': WhiteHat(),
+            'red': RedHat(),
+            'black': BlackHat(),
+            'yellow': YellowHat(),
+            'green': GreenHat()
         }
 
-    def format_hat_output(self, hat_color, analysis):
-        """Форматирует вывод для отдельной шляпы"""
-        emoji = self.hat_colors.get(hat_color, '🎩')
-        hat_name = hat_color.upper()
-        separator = "=" * 50
-        return f"""
-{separator}
-{emoji} {hat_name} ШЛЯПА {emoji}
-{separator}
-{analysis}
-"""
+    def get_hat(self, color: str) -> Optional[HatHandler]:
+        """
+        Returns the handler for a specific hat color
+        """
+        return self.hats.get(color)
 
-    def process_hat(self, hat_color, topic):
-        import logging
-        logging.info(f"Начало обработки для шляпы {hat_color} и темы: {topic}")
+    def get_dialogue_history(self) -> List[Dict]:
+        """
+        Returns the complete dialogue history across all hats
+        """
+        history = []
+        for hat in self.hats.values():
+            history.extend(hat.get_history())
+        return sorted(history, key=lambda x: x['timestamp'])
 
-        if hat_color not in self.hat_prompts:
-            logging.error(f"Неверный цвет шляпы: {hat_color}")
-            return {"error": f"Неверный цвет шляпы: {hat_color}"}
-
-        prompt_template = self.hat_prompts[hat_color]
-        formatted_prompt = prompt_template.format(topic=topic)
-
-        logging.info("Отправка запроса к Anthropic API")
-        try:
-            # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
-            response = self.client.messages.create(
-                model="claude-3-5-sonnet-20241022",
-                max_tokens=1000,
-                messages=[{"role": "user", "content": formatted_prompt}]
-            )
-
-            logging.info("Получен ответ от API")
-
-            if not response.content:
-                logging.error("Пустой ответ от API")
-                return {"error": "Пустой ответ от API"}
-
-            analysis = response.content[0].text.strip()
-            formatted_output = self.format_hat_output(hat_color, analysis)
-            print(formatted_output)  # Выводим форматированный текст в консоль
-
-            logging.info(f"Анализ для шляпы {hat_color}: {analysis[:100]}...")
-
-            return {
-                "analysis": analysis,
-                "hat_color": hat_color,
-                "formatted_output": formatted_output
-            }
-
-        except Exception as e:
-            logging.error(f"Ошибка при обработке шляпы {hat_color}: {str(e)}")
-            return {"error": f"Ошибка при обработке: {str(e)}"}
+    def get_blue_hat_summary(self) -> str:
+        """
+        Gets the latest summary from the Blue hat
+        """
+        blue_hat = self.hats['blue']
+        if blue_hat.messages:
+            return blue_hat.messages[-1]['content']
+        return "No summary available yet."
