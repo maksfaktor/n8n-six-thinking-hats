@@ -4,6 +4,7 @@ import {
     INodeType,
     INodeTypeDescription,
     NodeOperationError,
+    NodeConnectionType,
 } from 'n8n-workflow';
 import { PythonShell } from 'python-shell';
 import * as path from 'path';
@@ -18,8 +19,18 @@ export class SixThinkingHats implements INodeType {
         defaults: {
             name: 'Six Thinking Hats',
         },
-        inputs: ['main'],
-        outputs: ['main'],
+        inputs: [
+            {
+                type: NodeConnectionType.Main,
+                required: true,
+            },
+        ],
+        outputs: [
+            {
+                type: NodeConnectionType.Main,
+                required: true,
+            },
+        ],
         properties: [
             {
                 displayName: 'Тема',
@@ -62,38 +73,34 @@ export class SixThinkingHats implements INodeType {
                 default: ['white', 'red', 'black', 'yellow', 'green', 'blue'],
                 required: true,
                 description: 'Выберите, какие шляпы мышления применить',
-            },
-            {
-                displayName: 'OpenAI API Ключ',
-                name: 'apiKey',
-                type: 'string',
-                typeOptions: {
-                    password: true,
-                },
-                default: '',
-                required: true,
-                description: 'OpenAI API ключ для LangChain',
-            },
+            }
         ],
     };
 
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
-        const items = this.getInputData();
-        const returnData: INodeExecutionData[] = [];
-
         try {
+            const items = this.getInputData();
+            const returnData: INodeExecutionData[] = [];
+
             const topic = this.getNodeParameter('topic', 0) as string;
             const selectedHats = this.getNodeParameter('selectedHats', 0) as string[];
-            const apiKey = this.getNodeParameter('apiKey', 0) as string;
+
+            if (!process.env.ANTHROPIC_API_KEY) {
+                throw new Error('ANTHROPIC_API_KEY не найден в переменных окружения');
+            }
 
             const scriptPath = path.join(__dirname, 'six_hats_prompt.py');
 
-            let options = {
+            const options = {
                 mode: 'text' as const,
                 pythonPath: 'python3',
                 pythonOptions: ['-u'],
                 scriptPath: path.dirname(scriptPath),
-                args: [topic, JSON.stringify(selectedHats), apiKey],
+                args: [
+                    topic,
+                    JSON.stringify(selectedHats),
+                    process.env.ANTHROPIC_API_KEY
+                ],
             };
 
             const results = await new Promise<string[]>((resolve, reject) => {
@@ -104,6 +111,10 @@ export class SixThinkingHats implements INodeType {
                     output.push(message);
                 });
 
+                pyshell.on('error', (err) => {
+                    reject(err);
+                });
+
                 pyshell.end((err) => {
                     if (err) reject(err);
                     resolve(output);
@@ -112,7 +123,6 @@ export class SixThinkingHats implements INodeType {
 
             if (results && results.length > 0) {
                 const analysisResults = JSON.parse(results[results.length - 1]);
-
                 returnData.push({
                     json: {
                         topic,
@@ -121,12 +131,12 @@ export class SixThinkingHats implements INodeType {
                 });
             }
 
+            return [returnData];
         } catch (error) {
             if (error instanceof Error) {
                 throw new NodeOperationError(this.getNode(), error);
             }
+            throw error;
         }
-
-        return [returnData];
     }
 }

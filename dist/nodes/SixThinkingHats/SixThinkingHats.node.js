@@ -107,14 +107,13 @@ class SixThinkingHats {
         };
     }
     async execute() {
-        const items = this.getInputData();
-        const returnData = [];
         try {
+            const items = this.getInputData();
+            const returnData = [];
             const topic = this.getNodeParameter('topic', 0);
             const selectedHats = this.getNodeParameter('selectedHats', 0);
-            const apiKey = process.env.OPENAI_API_KEY;
-            if (!apiKey) {
-                throw new Error('OpenAI API ключ не найден в переменных окружения');
+            if (!process.env.ANTHROPIC_API_KEY) {
+                throw new Error('ANTHROPIC_API_KEY не найден в переменных окружения');
             }
             const scriptPath = path.join(__dirname, 'six_hats_prompt.py');
             const options = {
@@ -122,7 +121,11 @@ class SixThinkingHats {
                 pythonPath: 'python3',
                 pythonOptions: ['-u'],
                 scriptPath: path.dirname(scriptPath),
-                args: [topic, JSON.stringify(selectedHats), apiKey],
+                args: [
+                    topic,
+                    JSON.stringify(selectedHats),
+                    process.env.ANTHROPIC_API_KEY
+                ],
             };
             const results = await new Promise((resolve, reject) => {
                 const pyshell = new python_shell_1.PythonShell(path.basename(scriptPath), options);
@@ -134,9 +137,8 @@ class SixThinkingHats {
                     reject(err);
                 });
                 pyshell.end((err) => {
-                    if (err) {
+                    if (err)
                         reject(err);
-                    }
                     resolve(output);
                 });
             });
@@ -149,13 +151,14 @@ class SixThinkingHats {
                     },
                 });
             }
+            return [returnData];
         }
         catch (error) {
             if (error instanceof Error) {
                 throw new n8n_workflow_1.NodeOperationError(this.getNode(), error);
             }
+            throw error;
         }
-        return [returnData];
     }
 }
 exports.SixThinkingHats = SixThinkingHats;

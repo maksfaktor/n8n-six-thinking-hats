@@ -4,7 +4,7 @@
     "moduleResolution": "node",
     "target": "es2019",
     "outDir": "./dist",
-    "rootDir": "./nodes",
+    "rootDir": ".",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

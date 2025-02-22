@@ -1,4 +1,4 @@
-modules = ["python-3.11", "nodejs-20"]
+modules = ["python-3.11", "nodejs-20", "python3"]
 
 [nix]
 channel = "stable-24_05"
@@ -46,7 +46,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "npx tsc && node dist/SixThinkingHats/SixThinkingHats.node.js"
+args = "npx tsc && node dist/nodes/SixThinkingHats/SixThinkingHats.node.js"
 
 [deployment]
 run = ["sh", "-c", "node SixThinkingHats.node.ts"]

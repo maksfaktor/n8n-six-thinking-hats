@@ -1,78 +1,78 @@
-from langchain.prompts import PromptTemplate
-
 class HatHandler:
-    def __init__(self, llm):
-        self.llm = llm
+    def __init__(self, client):
+        self.client = client
         self.hat_prompts = {
             'white': """
-                Analyze the following topic from a White Hat perspective (facts and information only):
-                Topic: {topic}
-                Focus on:
-                - Available data and facts
-                - Objective information
-                - Gaps in knowledge
-                Please provide a structured analysis of the facts.
+                Анализируйте следующую тему с позиции Белой шляпы (только факты и информация):
+                Тема: {topic}
+                Сосредоточьтесь на:
+                - Доступных данных и фактах
+                - Объективной информации
+                - Пробелах в знаниях
+                Пожалуйста, предоставьте структурированный анализ фактов.
             """,
             'red': """
-                Consider the following topic from a Red Hat perspective (emotions and feelings):
-                Topic: {topic}
-                Focus on:
-                - Emotional reactions
-                - Intuitive responses
-                - Gut feelings
-                Share the emotional perspective without justification.
+                Рассмотрите следующую тему с позиции Красной шляпы (эмоции и чувства):
+                Тема: {topic}
+                Сосредоточьтесь на:
+                - Эмоциональных реакциях
+                - Интуитивных ответах
+                - Внутренних ощущениях
+                Поделитесь эмоциональной перспективой без обоснования.
             """,
             'black': """
-                Evaluate the following topic from a Black Hat perspective (critical judgment):
-                Topic: {topic}
-                Focus on:
-                - Potential risks
-                - Logical flaws
-                - Weaknesses
-                Provide a careful critical analysis.
+                Оцените следующую тему с позиции Черной шляпы (критическое суждение):
+                Тема: {topic}
+                Сосредоточьтесь на:
+                - Потенциальных рисках
+                - Логических недостатках
+                - Слабых местах
+                Предоставьте тщательный критический анализ.
             """,
             'yellow': """
-                Examine the following topic from a Yellow Hat perspective (benefits and positivity):
-                Topic: {topic}
-                Focus on:
-                - Opportunities
-                - Benefits
-                - Positive aspects
-                List the constructive points and potential advantages.
+                Изучите следующую тему с позиции Желтой шляпы (преимущества и позитив):
+                Тема: {topic}
+                Сосредоточьтесь на:
+                - Возможностях
+                - Преимуществах
+                - Позитивных аспектах
+                Перечислите конструктивные моменты и потенциальные выгоды.
             """,
             'green': """
-                Consider the following topic from a Green Hat perspective (creativity):
-                Topic: {topic}
-                Focus on:
-                - New ideas
-                - Alternative approaches
-                - Innovative solutions
-                Generate creative possibilities and alternatives.
+                Рассмотрите следующую тему с позиции Зеленой шляпы (креативность):
+                Тема: {topic}
+                Сосредоточьтесь на:
+                - Новых идеях
+                - Альтернативных подходах
+                - Инновационных решениях
+                Создайте творческие возможности и альтернативы.
             """,
             'blue': """
-                Organize thoughts about the following topic from a Blue Hat perspective (process control):
-                Topic: {topic}
-                Focus on:
-                - Overview of thinking process
-                - Next steps
-                - Action items
-                Provide a structured summary and action plan.
+                Организуйте мысли о следующей теме с позиции Синей шляпы (контроль процесса):
+                Тема: {topic}
+                Сосредоточьтесь на:
+                - Обзоре процесса мышления
+                - Следующих шагах
+                - Пунктах для действия
+                Предоставьте структурированное резюме и план действий.
             """
         }
 
     def process_hat(self, hat_color, topic):
         if hat_color not in self.hat_prompts:
-            return {"error": f"Invalid hat color: {hat_color}"}
+            return {"error": f"Неверный цвет шляпы: {hat_color}"}
 
-        prompt = PromptTemplate(
-            input_variables=["topic"],
-            template=self.hat_prompts[hat_color]
+        prompt_template = self.hat_prompts[hat_color]
+        formatted_prompt = prompt_template.format(topic=topic)
+
+        # the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
+        response = self.client.messages.create(
+            model="claude-3-5-sonnet-20241022",
+            max_tokens=1000,
+            messages=[{"role": "user", "content": formatted_prompt}]
         )
-        
-        formatted_prompt = prompt.format(topic=topic)
-        response = self.llm(formatted_prompt)
-        
+
         return {
-            "analysis": response.strip(),
+            "analysis": response.content[0].text.strip(),
             "hat_color": hat_color
         }
