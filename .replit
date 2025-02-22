@@ -1,0 +1,52 @@
+modules = ["python-3.11", "nodejs-20"]
+
+[nix]
+channel = "stable-24_05"
+
+[workflows]
+runButton = "Project"
+
+[[workflows.workflow]]
+name = "Project"
+mode = "parallel"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "SixThinkingHats"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "build-and-run"
+
+[[workflows.workflow]]
+name = "SixThinkingHats"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node SixThinkingHats.node.ts"
+waitForPort = 3000
+
+[[workflows.workflow]]
+name = "build-and-run"
+author = "agent"
+
+[workflows.workflow.metadata]
+agentRequireRestartOnSave = false
+
+[[workflows.workflow.tasks]]
+task = "packager.installForAll"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "npx tsc && node dist/SixThinkingHats/SixThinkingHats.node.js"
+
+[deployment]
+run = ["sh", "-c", "node SixThinkingHats.node.ts"]
