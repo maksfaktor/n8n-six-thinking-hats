@@ -35,6 +35,9 @@ class SixHatsAnalyzer:
             logger.info(f"Starting analysis for topic: {topic}")
             self.console.print_header(f"Analyzing: {topic}")
 
+            # Create progress tracker
+            progress_task = self.console.create_progress_tracker(len(hats_order))
+
             current_focus = topic
             for hat_color in hats_order:
                 hat_handler = self.hat_manager.get_hat(hat_color)
@@ -67,12 +70,19 @@ class SixHatsAnalyzer:
                 # Print message with context
                 self.console.print_message(hat_handler.messages[-1])
 
+                # Update progress
+                self.console.update_progress(progress_task)
+
                 # If it's the Blue hat, show summary after other hats have spoken
                 if hat_color == 'blue' and len(self.hat_manager.get_dialogue_history()) > 1:
                     self.console.print_blue_hat_summary(response)
 
-            # Show final dialogue summary
-            self.console.print_dialogue_summary(self.hat_manager.get_dialogue_history())
+            # Complete progress tracking
+            self.console.complete_progress()
+
+            # Show dialogue tree and statistics
+            self.console.print_dialogue_tree(self.hat_manager.get_dialogue_history())
+            self.console.print_analysis_statistics(self.hat_manager.get_dialogue_history())
 
             return {
                 'status': 'success',
@@ -81,6 +91,7 @@ class SixHatsAnalyzer:
 
         except Exception as e:
             logger.error(f"Analysis failed: {str(e)}")
+            self.console.print_error(str(e))
             return {
                 'status': 'error',
                 'error': str(e),

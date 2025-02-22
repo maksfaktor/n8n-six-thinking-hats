@@ -12,6 +12,8 @@ import { hatColors, defaultHatsOrder, IAnalysisResult } from './types';
 import Anthropic from '@anthropic-ai/sdk';
 import { spawn } from 'child_process';
 import { join } from 'path';
+import { readFileSync } from 'fs';
+import express from 'express';
 
 // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
 
@@ -67,7 +69,19 @@ export class SixThinkingHats implements INodeType {
         ],
     };
 
+    private setupVisualizationServer() {
+        const app = express();
+        const visualizerPath = join(__dirname, 'web_visualizer');
+        app.use(express.static(visualizerPath));
+
+        const port = process.env.VISUALIZER_PORT || 3001;
+        app.listen(port, '0.0.0.0', () => {
+            console.log(`Visualization server running on port ${port}`);
+        });
+    }
+
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
+        global.latestConversation = null;
         try {
             const topic = this.getNodeParameter('topic', 0) as string;
             const hatsOrder = this.getNodeParameter('hatsOrder', 0) as string[];
@@ -108,6 +122,10 @@ export class SixThinkingHats implements INodeType {
 
                     try {
                         const result = JSON.parse(outputData) as IAnalysisResult;
+                        if (result.status === 'success') {
+                            global.latestConversation = result;
+                            this.setupVisualizationServer();
+                        }
                         const returnData: INodeExecutionData[] = [{
                             json: result as unknown as IDataObject,
                         }];
