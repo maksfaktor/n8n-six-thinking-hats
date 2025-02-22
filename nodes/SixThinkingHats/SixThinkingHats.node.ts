@@ -15,9 +15,16 @@ import { join } from 'path';
 import { readFileSync } from 'fs';
 import express from 'express';
 
+// Declare global type for latestConversation
+declare global {
+    var latestConversation: IAnalysisResult | null;
+}
+
 // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
 
 export class SixThinkingHats implements INodeType {
+    private visualizationServer: express.Express | null = null;
+
     description: INodeTypeDescription = {
         displayName: 'Six Thinking Hats',
         name: 'sixThinkingHats',
@@ -70,14 +77,18 @@ export class SixThinkingHats implements INodeType {
     };
 
     private setupVisualizationServer() {
+        if (this.visualizationServer) return;
+
         const app = express();
         const visualizerPath = join(__dirname, 'web_visualizer');
         app.use(express.static(visualizerPath));
 
-        const port = process.env.VISUALIZER_PORT || 3001;
-        app.listen(port, '0.0.0.0', () => {
-            console.log(`Visualization server running on port ${port}`);
+        const serverPort = Number(process.env.VISUALIZER_PORT || 3001);
+        app.listen(serverPort, '0.0.0.0', () => {
+            console.log(`Visualization server running on port ${serverPort}`);
         });
+
+        this.visualizationServer = app;
     }
 
     async execute(this: IExecuteFunctions): Promise<INodeExecutionData[][]> {
@@ -124,7 +135,9 @@ export class SixThinkingHats implements INodeType {
                         const result = JSON.parse(outputData) as IAnalysisResult;
                         if (result.status === 'success') {
                             global.latestConversation = result;
-                            this.setupVisualizationServer();
+                            // Get instance reference and call visualization server setup
+                            const nodeInstance = this as unknown as SixThinkingHats;
+                            nodeInstance.setupVisualizationServer();
                         }
                         const returnData: INodeExecutionData[] = [{
                             json: result as unknown as IDataObject,

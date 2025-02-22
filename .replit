@@ -31,7 +31,7 @@ task = "packager.installForAll"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true N8N_PORT=5678 N8N_USER_FOLDER=/home/runner/.n8n npx n8n start"
+args = "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true N8N_PORT=5678 N8N_USER_FOLDER=/home/runner/.n8n N8N_CUSTOM_EXTENSIONS=/home/runner/workspace/nodes npx n8n start"
 waitForPort = 5678
 
 [[workflows.workflow]]
@@ -50,7 +50,7 @@ args = "cd nodes/SixThinkingHats && node web_visualizer/server.js"
 waitForPort = 3001
 
 [deployment]
-run = ["sh", "-c", "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true N8N_PORT=5678 N8N_USER_FOLDER=/home/runner/.n8n npx n8n start"]
+run = ["sh", "-c", "N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS=true N8N_PORT=5678 N8N_USER_FOLDER=/home/runner/.n8n N8N_CUSTOM_EXTENSIONS=/home/runner/workspace/nodes npx n8n start"]
 
 [[ports]]
 localPort = 3001

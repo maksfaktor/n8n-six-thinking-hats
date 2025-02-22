@@ -1,12 +1,17 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.SixThinkingHats = void 0;
 const types_1 = require("./types");
 const child_process_1 = require("child_process");
 const path_1 = require("path");
+const express_1 = __importDefault(require("express"));
 // the newest Anthropic model is "claude-3-5-sonnet-20241022" which was released October 22, 2024
 class SixThinkingHats {
     constructor() {
+        this.visualizationServer = null;
         this.description = {
             displayName: 'Six Thinking Hats',
             name: 'sixThinkingHats',
@@ -58,7 +63,20 @@ class SixThinkingHats {
             ],
         };
     }
+    setupVisualizationServer() {
+        if (this.visualizationServer)
+            return;
+        const app = (0, express_1.default)();
+        const visualizerPath = (0, path_1.join)(__dirname, 'web_visualizer');
+        app.use(express_1.default.static(visualizerPath));
+        const serverPort = Number(process.env.VISUALIZER_PORT || 3001);
+        app.listen(serverPort, '0.0.0.0', () => {
+            console.log(`Visualization server running on port ${serverPort}`);
+        });
+        this.visualizationServer = app;
+    }
     async execute() {
+        global.latestConversation = null;
         try {
             const topic = this.getNodeParameter('topic', 0);
             const hatsOrder = this.getNodeParameter('hatsOrder', 0);
@@ -92,6 +110,12 @@ class SixThinkingHats {
                     }
                     try {
                         const result = JSON.parse(outputData);
+                        if (result.status === 'success') {
+                            global.latestConversation = result;
+                            // Get instance reference and call visualization server setup
+                            const nodeInstance = this;
+                            nodeInstance.setupVisualizationServer();
+                        }
                         const returnData = [{
                                 json: result,
                             }];
